@@ -1,0 +1,29 @@
+{
+  "workoutId": "random_id",
+  "ownerId": 105356163,
+  "workoutName": "Any workout name",
+  "description": "FTP 200, TSS 1, NP 114, IF 0.57",
+  "sportType": { "sportTypeId": 2, "sportTypeKey": "cycling" },
+  "workoutSegments": [
+    {
+      "segmentOrder": 1,
+      "sportType": { "sportTypeId": 2, "sportTypeKey": "cycling" },
+      "workoutSteps": [
+        {
+          "type": "ExecutableStepDTO",
+          "stepOrder": 1,
+          "stepType": { "stepTypeId": 3, "stepTypeKey": "interval" },
+          "childStepId": null,
+          "endCondition": { "conditionTypeId": 2, "conditionTypeKey": "time" },
+          "endConditionValue": 60,
+          "targetType": {
+            "workoutTargetTypeId": 2,
+            "workoutTargetTypeKey": "power.zone"
+          },
+          "targetValueOne": 95,
+          "targetValueTwo": 105
+        }
+      ]
+    }
+  ]
+}

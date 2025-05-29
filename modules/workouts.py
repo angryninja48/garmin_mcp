@@ -68,7 +68,9 @@ def register_tools(app):
             workout_json: JSON string containing workout data
         """
         try:
-            result = garmin_client.upload_workout(workout_json)
+            # Use the garth client directly to upload the workout
+            url = f"{garmin_client.garmin_workouts}/workout"
+            result = garmin_client.garth.post("connectapi", url, json=workout_json, api=True)
             return result
         except Exception as e:
             return f"Error uploading workout: {str(e)}"
