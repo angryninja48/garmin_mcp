@@ -37,7 +37,7 @@ def _pace_min_km_to_ms(pace_str: str) -> float:
         raise ValueError(f"Invalid pace format: {pace_str}. Use format 'M:SS' (e.g., '4:30')")
 
 
-class WorkoutStepBase(TypedDict):
+class WorkoutStepBase(TypedDict, total=False):
     """Base class for workout steps"""
     type: Literal["warmup", "interval", "rest", "cooldown"]
     goal_type: Literal["time", "distance", "lap_button"]
