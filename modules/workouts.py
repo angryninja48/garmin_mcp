@@ -2,8 +2,7 @@
 Workout-related functions for Garmin Connect MCP Server
 """
 import datetime
-import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypedDict, Literal
 
 # The garmin_client will be set by the main file
 garmin_client = None
@@ -36,6 +35,27 @@ def _pace_min_km_to_ms(pace_str: str) -> float:
         return 1000.0 / total_seconds
     except (ValueError, ZeroDivisionError):
         raise ValueError(f"Invalid pace format: {pace_str}. Use format 'M:SS' (e.g., '4:30')")
+
+
+class WorkoutStepBase(TypedDict):
+    """Base class for workout steps"""
+    type: Literal["warmup", "interval", "rest", "cooldown"]
+    goal_type: Literal["time", "distance", "lap_button"]
+    goal_value: Union[int, float]
+    target_type: Optional[Literal["no.target", "heart_rate", "pace"]]
+    target_min: Optional[Union[int, float, str]]
+    target_max: Optional[Union[int, float, str]]
+    description: Optional[str]
+
+
+class RepeatStep(TypedDict):
+    """Class for repeat steps"""
+    type: Literal["repeat"]
+    iterations: int
+    repeat_steps: List[WorkoutStepBase]
+
+
+WorkoutStep = Union[WorkoutStepBase, RepeatStep]
 
 
 def _create_workout_step(step_type: str, goal_type: str, goal_value: Union[int, float], 
@@ -170,7 +190,7 @@ def register_tools(app):
         workout_name: str,
         sport_type: str = "running",
         description: str = None,
-        steps: str = None
+        steps: Optional[List[WorkoutStep]] = None
     ) -> str:
         """Create and upload a custom workout to Garmin Connect
         
@@ -178,20 +198,23 @@ def register_tools(app):
             workout_name: Name for the workout
             sport_type: Sport type (running, cycling, swimming, etc.) - default is "running"
             description: Optional description for the workout
-            steps: JSON string describing workout steps. Format:
-                [
-                    {
-                        "type": "warmup|interval|rest|cooldown|repeat",
-                        "goal_type": "time|distance|lap_button",
-                        "goal_value": number (seconds for time, meters for distance),
-                        "target_type": "no.target|heart_rate|pace",
-                        "target_min": number (bpm for HR, pace as "M:SS" string for pace),
-                        "target_max": number (bpm for HR, pace as "M:SS" string for pace),
-                        "description": "optional step description",
-                        "iterations": number (only for repeat type),
-                        "repeat_steps": [...] (only for repeat type, array of steps)
-                    }
-                ]
+            steps: List of workout steps. Each step can be either a regular step or a repeat step.
+                Regular step format:
+                {
+                    "type": "warmup|interval|rest|cooldown",
+                    "goal_type": "time|distance|lap_button",
+                    "goal_value": number (seconds for time, meters for distance),
+                    "target_type": "no.target|heart_rate|pace",
+                    "target_min": number (bpm for HR, pace as "M:SS" string for pace),
+                    "target_max": number (bpm for HR, pace as "M:SS" string for pace),
+                    "description": "optional step description"
+                }
+                Repeat step format:
+                {
+                    "type": "repeat",
+                    "iterations": number,
+                    "repeat_steps": [list of regular steps]
+                }
                 
         Example steps for a simple interval workout:
         [
@@ -208,15 +231,9 @@ def register_tools(app):
         ]
         """
         try:
-            # Parse steps if provided, otherwise create a simple workout
-            if steps:
-                try:
-                    steps_data = json.loads(steps)
-                except json.JSONDecodeError as e:
-                    return f"Error parsing steps JSON: {str(e)}"
-            else:
-                # Default simple workout
-                steps_data = [
+            # Use default workout if no steps provided
+            if steps is None:
+                steps = [
                     {"type": "warmup", "goal_type": "time", "goal_value": 300, "description": "Warm up"},
                     {"type": "interval", "goal_type": "time", "goal_value": 1200, "target_type": "no.target", "description": "Main set"},
                     {"type": "cooldown", "goal_type": "time", "goal_value": 300, "description": "Cool down"}
@@ -226,13 +243,13 @@ def register_tools(app):
             workout_steps = []
             step_order = 1
             
-            for step_data in steps_data:
+            for step_data in steps:
                 if step_data["type"] == "repeat":
                     # Handle repeat groups
                     repeat_steps = []
                     child_step_order = 1
                     
-                    for repeat_step_data in step_data.get("repeat_steps", []):
+                    for repeat_step_data in step_data["repeat_steps"]:
                         # Convert pace if needed
                         target_min = repeat_step_data.get("target_min")
                         target_max = repeat_step_data.get("target_max")
