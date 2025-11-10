@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all gear management tools with the MCP server app"""
@@ -24,6 +31,10 @@ def register_tools(app):
         Args:
             user_profile_id: User profile ID (can be obtained from get_device_last_used)
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             gear = garmin_client.get_gear(user_profile_id)
             if not gear:
@@ -39,6 +50,10 @@ def register_tools(app):
         Args:
             user_profile_id: User profile ID (can be obtained from get_device_last_used)
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             defaults = garmin_client.get_gear_defaults(user_profile_id)
             if not defaults:
@@ -54,6 +69,10 @@ def register_tools(app):
         Args:
             gear_uuid: UUID of the gear item
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             stats = garmin_client.get_gear_stats(gear_uuid)
             if not stats:

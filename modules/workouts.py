@@ -2,7 +2,8 @@
 Workout-related functions for Garmin Connect MCP Server
 """
 import datetime
-from typing import Any, Dict, List, Optional, Union, TypedDict, Literal
+from typing import Any, Dict, List, Optional, Union, Literal
+from typing_extensions import TypedDict
 
 # The garmin_client will be set by the main file
 garmin_client = None
@@ -12,6 +13,13 @@ def configure(client):
     """Configure the module with the Garmin client instance"""
     global garmin_client
     garmin_client = client
+
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
 
 
 def _pace_min_km_to_ms(pace_str: str) -> float:
@@ -145,6 +153,10 @@ def register_tools(app):
     @app.tool()
     async def get_workouts() -> str:
         """Get all workouts"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             workouts = garmin_client.get_workouts()
             if not workouts:
@@ -160,6 +172,10 @@ def register_tools(app):
         Args:
             workout_id: ID of the workout to retrieve
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             workout = garmin_client.get_workout_by_id(workout_id)
             if not workout:
@@ -175,6 +191,10 @@ def register_tools(app):
         Args:
             workout_id: ID of the workout to download
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             workout_data = garmin_client.download_workout(workout_id)
             if not workout_data:
@@ -343,6 +363,10 @@ def register_tools(app):
         Args:
             file_path: Path to the activity file (.fit, .gpx, .tcx)
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             # This is a placeholder - actual implementation would need to handle file access
             return f"Activity upload from file path {file_path} is not supported in this MCP server implementation."

@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all challenges-related tools with the MCP server app"""
@@ -35,6 +42,10 @@ def register_tools(app):
     @app.tool()
     async def get_personal_record() -> str:
         """Get personal records for user"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             records = garmin_client.get_personal_record()
             if not records:
@@ -46,6 +57,10 @@ def register_tools(app):
     @app.tool()
     async def get_earned_badges() -> str:
         """Get earned badges for user"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             badges = garmin_client.get_earned_badges()
             if not badges:
@@ -62,6 +77,10 @@ def register_tools(app):
             start: Starting index for challenges retrieval
             limit: Maximum number of challenges to retrieve
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             challenges = garmin_client.get_adhoc_challenges(start, limit)
             if not challenges:
@@ -78,6 +97,10 @@ def register_tools(app):
             start: Starting index for challenges retrieval (starts at 1)
             limit: Maximum number of challenges to retrieve
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             challenges = garmin_client.get_available_badge_challenges(start, limit)
             if not challenges:
@@ -94,6 +117,10 @@ def register_tools(app):
             start: Starting index for challenges retrieval (starts at 1)
             limit: Maximum number of challenges to retrieve
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             challenges = garmin_client.get_badge_challenges(start, limit)
             if not challenges:
@@ -110,6 +137,10 @@ def register_tools(app):
             start: Starting index for challenges retrieval (starts at 1)
             limit: Maximum number of challenges to retrieve
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             challenges = garmin_client.get_non_completed_badge_challenges(start, limit)
             if not challenges:
@@ -121,6 +152,10 @@ def register_tools(app):
     @app.tool()
     async def get_race_predictions() -> str:
         """Get race predictions for user"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             predictions = garmin_client.get_race_predictions()
             if not predictions:
@@ -137,6 +172,10 @@ def register_tools(app):
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             challenges = garmin_client.get_inprogress_virtual_challenges(
                 start_date, end_date
