@@ -14,6 +14,13 @@ def configure(client):
     garmin_client = client
 
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 def register_tools(app):
     """Register all health and wellness tools with the MCP server app"""
     
@@ -24,6 +31,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             stats = garmin_client.get_stats(date)
             if not stats:

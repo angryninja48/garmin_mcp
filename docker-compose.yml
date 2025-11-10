@@ -1,0 +1,35 @@
+services:
+  garmin-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: garmin-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      # Set your Garmin credentials here or use .env file
+      GARMIN_EMAIL: ${GARMIN_EMAIL:-}
+      GARMIN_PASSWORD: ${GARMIN_PASSWORD:-}
+      GARMINTOKENS: /data/.garminconnect
+      PYTHONUNBUFFERED: 1
+      # Optional: Set MCP bearer token for authentication
+      # Generate with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
+      # OAuth configuration (required for Claude mobile/web)
+      MCP_BASE_URL: ${MCP_BASE_URL:-http://localhost:8000}
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-garmin-mcp-client}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
+    volumes:
+      # Persist Garmin OAuth tokens between restarts
+      - garmin-tokens:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  garmin-tokens:
+    driver: local

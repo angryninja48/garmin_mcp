@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all user profile tools with the MCP server app"""
@@ -20,6 +27,10 @@ def register_tools(app):
     @app.tool()
     async def get_full_name() -> str:
         """Get user's full name from profile"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             full_name = garmin_client.get_full_name()
             return full_name
@@ -29,6 +40,10 @@ def register_tools(app):
     @app.tool()
     async def get_unit_system() -> str:
         """Get user's preferred unit system from profile"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             unit_system = garmin_client.get_unit_system()
             return unit_system
@@ -38,6 +53,10 @@ def register_tools(app):
     @app.tool()
     async def get_user_profile() -> str:
         """Get user profile information"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             profile = garmin_client.get_user_profile()
             if not profile:
@@ -49,6 +68,10 @@ def register_tools(app):
     @app.tool()
     async def get_userprofile_settings() -> str:
         """Get user profile settings"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             settings = garmin_client.get_userprofile_settings()
             if not settings:

@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all weight management tools with the MCP server app"""
@@ -25,6 +32,10 @@ def register_tools(app):
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             weigh_ins = garmin_client.get_weigh_ins(start_date, end_date)
             if not weigh_ins:
@@ -40,6 +51,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             weigh_ins = garmin_client.get_daily_weigh_ins(date)
             if not weigh_ins:
@@ -56,6 +71,10 @@ def register_tools(app):
             date: Date in YYYY-MM-DD format
             delete_all: Whether to delete all measurements for the day
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             result = garmin_client.delete_weigh_ins(date, delete_all=delete_all)
             return result
@@ -70,6 +89,10 @@ def register_tools(app):
             weight: Weight value
             unit_key: Unit of weight ('kg' or 'lb')
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             result = garmin_client.add_weigh_in(weight=weight, unitKey=unit_key)
             return result

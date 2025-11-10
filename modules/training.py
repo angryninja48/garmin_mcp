@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all training-related tools with the MCP server app"""
@@ -46,6 +53,10 @@ def register_tools(app):
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             hill_score = garmin_client.get_hill_score(start_date, end_date)
             if not hill_score:
@@ -62,6 +73,10 @@ def register_tools(app):
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             endurance_score = garmin_client.get_endurance_score(start_date, end_date)
             if not endurance_score:
@@ -77,6 +92,10 @@ def register_tools(app):
         Args:
             activity_id: ID of the activity to retrieve training effect for
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             effect = garmin_client.get_training_effect(activity_id)
             if not effect:
@@ -92,6 +111,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             metrics = garmin_client.get_max_metrics(date)
             if not metrics:
@@ -107,6 +130,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             hrv_data = garmin_client.get_hrv_data(date)
             if not hrv_data:
@@ -122,6 +149,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             fitness_age = garmin_client.get_fitnessage_data(date)
             if not fitness_age:
@@ -137,6 +168,10 @@ def register_tools(app):
         Args:
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             result = garmin_client.request_reload(date)
             return result

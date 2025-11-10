@@ -13,6 +13,13 @@ def configure(client):
     global garmin_client
     garmin_client = client
 
+def _check_client():
+    """Check if Garmin client is available"""
+    if not garmin_client:
+        return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
+    return None
+
+
 
 def register_tools(app):
     """Register all device-related tools with the MCP server app"""
@@ -20,6 +27,10 @@ def register_tools(app):
     @app.tool()
     async def get_devices() -> str:
         """Get all Garmin devices associated with the user account"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             devices = garmin_client.get_devices()
             if not devices:
@@ -31,6 +42,10 @@ def register_tools(app):
     @app.tool()
     async def get_device_last_used() -> str:
         """Get information about the last used Garmin device"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             device = garmin_client.get_device_last_used()
             if not device:
@@ -46,6 +61,10 @@ def register_tools(app):
         Args:
             device_id: Device ID
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             settings = garmin_client.get_device_settings(device_id)
             if not settings:
@@ -57,6 +76,10 @@ def register_tools(app):
     @app.tool()
     async def get_primary_training_device() -> str:
         """Get information about the primary training device"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             device = garmin_client.get_primary_training_device()
             if not device:
@@ -73,6 +96,10 @@ def register_tools(app):
             device_id: Device ID
             date: Date in YYYY-MM-DD format
         """
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             solar_data = garmin_client.get_device_solar_data(device_id, date)
             if not solar_data:
@@ -84,6 +111,10 @@ def register_tools(app):
     @app.tool()
     async def get_device_alarms() -> str:
         """Get alarms from all Garmin devices"""
+        error = _check_client()
+        if error:
+            return error
+        
         try:
             alarms = garmin_client.get_device_alarms()
             if not alarms:
