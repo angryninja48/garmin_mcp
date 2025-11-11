@@ -5,9 +5,9 @@ A Model Context Protocol (MCP) server that provides Claude AI with access to you
 ## Features
 
 - **78+ Garmin Connect Tools** - Complete access to your fitness data
-- **OAuth 2.0 Authentication** - Secure integration with Claude mobile & web
-- **Dynamic Client Registration** - No manual OAuth setup required
-- **PKCE Support** - Secure mobile app integration
+- **GitHub OAuth Authentication** - Only authorized GitHub users can access
+- **User Access Control** - Restrict access to specific GitHub usernames
+- **PKCE Support** - Secure OAuth 2.0 flow with proof key
 - **Docker Support** - Easy deployment with Docker Compose
 - **Kubernetes Ready** - Production deployment manifests included
 - **Health Check Endpoint** - Container orchestration support
@@ -47,8 +47,13 @@ nano .env
 GARMIN_EMAIL=your-email@example.com
 GARMIN_PASSWORD=your-password
 
-# Generate secure token
+# Generate secure token (still needed for internal use)
 MCP_BEARER_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+
+# GitHub OAuth Configuration (get from https://github.com/settings/developers)
+GITHUB_CLIENT_ID=Ov23liYourClientId
+GITHUB_CLIENT_SECRET=your_github_client_secret
+ALLOWED_GITHUB_USERNAME=your-github-username
 
 # For local testing
 MCP_BASE_URL=http://localhost:8000
@@ -70,14 +75,25 @@ docker-compose logs -f garmin-mcp
 curl http://localhost:8000/health
 ```
 
-### 4. Test Connection
+### 4. Create GitHub OAuth App
+
+Before Claude can connect, you need to create a GitHub OAuth App:
+
+1. Go to https://github.com/settings/developers
+2. Click **"OAuth Apps"** → **"New OAuth App"**
+3. Fill in:
+   - **Application name**: `Garmin MCP Server`
+   - **Homepage URL**: `https://garmin-mcp.your-domain.com` (or ngrok URL for testing)
+   - **Authorization callback URL**: `https://garmin-mcp.your-domain.com/auth/callback`
+4. Click **"Register application"**
+5. Copy the **Client ID** and generate a **Client Secret**
+6. Update your `.env` file with these values
+
+### 5. Test Connection
 
 ```bash
-# Test OAuth endpoints
-python3 test_oauth.py
-
-# Test with authentication
-python3 test_auth.py http://localhost:8000/mcp YOUR_TOKEN_HERE
+# Test with authentication (tests still use bearer tokens internally)
+python3 tests/test_auth.py http://localhost:8000/mcp YOUR_TOKEN_HERE
 ```
 
 ## Claude Integration
@@ -99,26 +115,46 @@ python3 test_auth.py http://localhost:8000/mcp YOUR_TOKEN_HERE
    - Click "Add connector"
    - Enter: `https://garmin-mcp.your-domain.com/mcp`
 
-3. **Authorize**:
+3. **Authorize with GitHub**:
    - Click "Connect"
-   - Complete OAuth flow
-   - Grant Claude access to your Garmin data
+   - You'll be redirected to GitHub to authorize
+   - Log in with your GitHub account
+   - Approve the authorization request
+   - You'll be redirected back to Claude
 
-4. **Start Using**:
+4. **Access Control**:
+   - Only the GitHub username specified in `ALLOWED_GITHUB_USERNAME` can access
+   - Other users will see: "Access denied: GitHub user 'X' is not authorized"
+   - This protects your personal Garmin data from unauthorized access
+
+5. **Start Using**:
    ```
    "Show me my last 5 activities"
    "What was my heart rate during my last run?"
    "How many steps did I take yesterday?"
    ```
 
+### GitHub OAuth Flow
+
+When Claude connects to your server:
+
+1. Claude initiates OAuth by redirecting to your server's `/authorize` endpoint
+2. Your server redirects to GitHub for authentication
+3. User logs in with their GitHub account
+4. GitHub redirects back to your server with an authorization code
+5. Your server exchanges the code for tokens and validates the username
+6. If the username matches `ALLOWED_GITHUB_USERNAME`, access is granted
+7. Otherwise, all tool calls return "Access denied"
+
 ### OAuth Endpoints
 
 Your server automatically provides:
 
+- **GitHub Callback**: `/auth/callback` (configured in your GitHub OAuth App)
 - **Discovery**: `/.well-known/oauth-authorization-server`
 - **Authorization**: `/authorize`
 - **Token Exchange**: `/token`
-- **Registration**: `/register` (Dynamic Client Registration)
+- **Registration**: `/register` (for MCP client compatibility)
 
 Claude discovers and uses these automatically.
 
@@ -296,7 +332,10 @@ cloudflared tunnel --url http://localhost:8000
 |----------|----------|---------|-------------|
 | `GARMIN_EMAIL` | Yes | - | Your Garmin Connect email |
 | `GARMIN_PASSWORD` | Yes | - | Your Garmin Connect password |
-| `MCP_BEARER_TOKEN` | Yes | - | OAuth bearer token (generate with `secrets.token_urlsafe(32)`) |
+| `MCP_BEARER_TOKEN` | Yes | - | Internal token (generate with `secrets.token_urlsafe(32)`) |
+| `GITHUB_CLIENT_ID` | Yes | - | GitHub OAuth App Client ID |
+| `GITHUB_CLIENT_SECRET` | Yes | - | GitHub OAuth App Client Secret |
+| `ALLOWED_GITHUB_USERNAME` | Yes | - | GitHub username allowed to access (e.g., "angryninja48") |
 | `MCP_BASE_URL` | Yes | `http://localhost:8000` | Public HTTPS URL for OAuth callbacks |
 | `GARMINTOKENS` | No | `/data/.garminconnect` | Path to store Garmin auth tokens |
 
@@ -309,27 +348,44 @@ Default: Both read and write enabled
 
 ## Security
 
-### Authentication
+### Authentication & Authorization
 
-- **OAuth 2.0** with Dynamic Client Registration (DCR)
-- **PKCE** (Proof Key for Code Exchange) for mobile security
-- **Refresh tokens** for long-lived sessions
-- **Automatic token rotation**
+- **GitHub OAuth 2.0** - Users authenticate with their GitHub accounts
+- **Username Validation** - Only specified GitHub username can access tools
+- **PKCE** (Proof Key for Code Exchange) - Enhanced OAuth security
+- **Two-Layer Security**:
+  1. GitHub OAuth - Ensures user has a GitHub account
+  2. Username Check - Ensures user is authorized in your server config
+
+### How Access Control Works
+
+When a user tries to use a tool:
+
+1. **OAuth Token Validation** - FastMCP validates the GitHub OAuth token
+2. **Username Extraction** - Server extracts GitHub username from token claims
+3. **Authorization Check** - Server compares username against `ALLOWED_GITHUB_USERNAME`
+4. **Access Decision**:
+   - ✅ **Match**: Tool executes and returns data
+   - ❌ **No Match**: Returns "Access denied: GitHub user 'X' is not authorized"
+
+This means:
+- Anyone can complete GitHub OAuth (public)
+- Only YOUR GitHub username can access YOUR Garmin data (private)
 
 ### Best Practices
 
 1. **Always use HTTPS in production** - Required by OAuth 2.0 spec
-2. **Secure your bearer token** - Store in secrets manager
-3. **Rotate tokens regularly** - Generate new tokens periodically
-4. **Monitor access logs** - Watch for unauthorized usage
+2. **Keep GitHub credentials secure** - Store Client Secret in secrets manager
+3. **Don't share your server URL publicly** - While username-protected, it's better to keep private
+4. **Monitor access logs** - Watch for unauthorized OAuth attempts
 5. **Use Kubernetes secrets** - Don't commit credentials to git
-6. **Enable network policies** - Restrict pod-to-pod communication
+6. **Review GitHub authorizations** - Regularly check https://github.com/settings/applications
 
 ### Token Storage
 
 - Garmin OAuth tokens stored in `/data/.garminconnect`
-- MCP OAuth clients stored in memory (use Redis for production)
-- Persistent volume recommended for token storage
+- GitHub OAuth tokens managed by FastMCP
+- Persistent volume recommended for Garmin token storage
 
 ## Troubleshooting
 
@@ -370,9 +426,21 @@ curl https://your-domain.com/.well-known/oauth-authorization-server
 ### Claude Can't Connect
 
 1. **Check HTTPS**: OAuth requires HTTPS (HTTP won't work)
-2. **Verify DNS**: `nslookup your-domain.com`
-3. **Check certificate**: `curl -v https://your-domain.com/health`
-4. **Review logs**: `kubectl logs -f deployment/garmin-mcp`
+2. **Verify GitHub OAuth App**:
+   - Callback URL matches: `https://your-domain.com/auth/callback`
+   - Client ID and Secret are correct in environment variables
+3. **Verify DNS**: `nslookup your-domain.com`
+4. **Check certificate**: `curl -v https://your-domain.com/health`
+5. **Review logs**: `kubectl logs -f deployment/garmin-mcp`
+
+### "Access denied: GitHub user 'X' is not authorized"
+
+This is **working correctly**. It means:
+- Someone else tried to connect with their GitHub account
+- Your server correctly blocked them
+- Only the username in `ALLOWED_GITHUB_USERNAME` can access
+
+To grant access to someone else, add their GitHub username to the environment variable.
 
 ### Tools Not Appearing
 
@@ -390,13 +458,22 @@ curl http://localhost:8000/health
 
 ### Running Tests
 
-```bash
-# Test OAuth endpoints
-python3 test_oauth.py
+**⚠️ Important:** Automated tests don't work with GitHub OAuth (they can't complete browser-based GitHub login).
 
-# Test authentication
-python3 test_auth.py http://localhost:8000/mcp YOUR_TOKEN
+**For local development** (without GitHub OAuth):
+```bash
+# Run server without GitHub credentials
+# Tests will work with bearer token authentication
+python3 tests/test_auth.py http://localhost:8000/mcp YOUR_TOKEN
 ```
+
+**For production** (with GitHub OAuth):
+- Use manual testing via Claude.ai
+- Complete OAuth flow in browser
+- Test tools in Claude conversations
+- See `tests/README.md` for detailed testing guide
+
+Production uses GitHub OAuth for security - automated tests can't replicate the browser-based authorization flow.
 
 ### Adding New Tools
 
