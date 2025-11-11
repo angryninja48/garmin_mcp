@@ -4,6 +4,6 @@ modules/__pycache__/
 __pycache__/
 *.pyc
 .DS_Store
-k8s/deployment-configured.yaml
+k8s/
 .garminconnect
 .garminconnect_base64

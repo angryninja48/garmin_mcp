@@ -142,34 +142,29 @@ data_management.configure(garmin_client)
 womens_health.configure(garmin_client)
 
 # Create OAuth provider for Claude mobile/web integration
+# TEMPORARY: Disable OAuth to test Claude connectivity
+# TODO: Re-enable once basic connection is working
 auth_provider = None
-if bearer_token:
-    from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
-    from fastmcp.server.auth.auth import ClientRegistrationOptions
-    
-    # Create OAuth provider with Dynamic Client Registration (DCR) enabled
-    # This allows Claude to register itself automatically during OAuth flow
-    auth_provider = InMemoryOAuthProvider(
-        base_url=os.environ.get("MCP_BASE_URL", "http://localhost:8000"),
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            valid_scopes=["read", "write"],
-            default_scopes=["read", "write"],
-        ),
-    )
-    
-    print(f"✓ OAuth provider configured with Dynamic Client Registration")
-    print(f"  Base URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}")
-    print(f"  DCR enabled - Claude can register automatically")
-    print()
-    print("=" * 60)
-    print("Claude Custom Connector Configuration:")
-    print("=" * 60)
-    print(f"Server URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}/mcp")
-    print(f"")
-    print(f"Claude will automatically register during OAuth flow.")
-    print(f"No client_id/secret needed - Dynamic Client Registration handles it!")
-    print("=" * 60)
+# if bearer_token:
+#     from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
+#     from fastmcp.server.auth.auth import ClientRegistrationOptions
+#     
+#     auth_provider = InMemoryOAuthProvider(
+#         base_url=os.environ.get("MCP_BASE_URL", "http://localhost:8000"),
+#         client_registration_options=ClientRegistrationOptions(
+#             enabled=True,
+#             valid_scopes=["read", "write"],
+#             default_scopes=["read", "write"],
+#         ),
+#     )
+#     
+#     print(f"✓ OAuth provider configured with Dynamic Client Registration")
+
+print("⚠️  RUNNING IN AUTHLESS MODE FOR TESTING")
+print("=" * 60)
+print(f"Server URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}/mcp")
+print("⚠️  WARNING: No authentication - anyone can access!")
+print("=" * 60)
 
 # Create the MCP server with OAuth authentication
 mcp = FastMCP("Garmin Connect v1.0", auth=auth_provider)
