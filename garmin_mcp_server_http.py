@@ -141,35 +141,42 @@ workouts.configure(garmin_client)
 data_management.configure(garmin_client)
 womens_health.configure(garmin_client)
 
-# Create OAuth provider for Claude mobile/web integration
+# Create OAuth provider using GitHub authentication
+# This ensures only authorized GitHub users can access the server
 auth_provider = None
-if bearer_token:
-    from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
-    from fastmcp.server.auth.auth import ClientRegistrationOptions
+github_client_id = os.environ.get("GITHUB_CLIENT_ID", "")
+github_client_secret = os.environ.get("GITHUB_CLIENT_SECRET", "")
+allowed_github_username = os.environ.get("ALLOWED_GITHUB_USERNAME", "angryninja48")
+
+if github_client_id and github_client_secret:
+    from fastmcp.server.auth.providers.github import GitHubProvider
     
-    # Create OAuth provider with Dynamic Client Registration (DCR) enabled
-    # This allows Claude to register itself automatically during OAuth flow
-    auth_provider = InMemoryOAuthProvider(
+    # Create GitHub OAuth provider
+    # Users must authenticate with GitHub to access the server
+    auth_provider = GitHubProvider(
+        client_id=github_client_id,
+        client_secret=github_client_secret,
         base_url=os.environ.get("MCP_BASE_URL", "http://localhost:8000"),
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            valid_scopes=["read", "write"],
-            default_scopes=["read", "write"],
-        ),
     )
     
-    print(f"✓ OAuth provider configured with Dynamic Client Registration")
+    print(f"✓ GitHub OAuth provider configured")
     print(f"  Base URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}")
-    print(f"  DCR enabled - Claude can register automatically")
+    print(f"  Callback URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}/auth/callback")
+    print(f"  Allowed user: {allowed_github_username}")
     print()
     print("=" * 60)
     print("Claude Custom Connector Configuration:")
     print("=" * 60)
     print(f"Server URL: {os.environ.get('MCP_BASE_URL', 'http://localhost:8000')}/mcp")
     print(f"")
-    print(f"Claude will automatically register during OAuth flow.")
-    print(f"No client_id/secret needed - Dynamic Client Registration handles it!")
+    print(f"Authentication: GitHub OAuth")
+    print(f"Only GitHub user '{allowed_github_username}' can access this server.")
     print("=" * 60)
+else:
+    print("⚠️  WARNING: GitHub OAuth not configured!")
+    print("⚠️  Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables")
+    print("⚠️  Server will run WITHOUT authentication!")
+    print("⚠️  Create OAuth App at: https://github.com/settings/developers")
 
 # Create the MCP server with OAuth authentication
 mcp = FastMCP("Garmin Connect v1.0", auth=auth_provider)
@@ -177,6 +184,25 @@ mcp = FastMCP("Garmin Connect v1.0", auth=auth_provider)
 # Configure host and port via settings (as per GitHub issue #873 workaround)
 mcp.settings.host = "0.0.0.0"
 mcp.settings.port = 8000
+
+# Helper function to check if user is authorized
+def check_github_auth():
+    """Check if the authenticated GitHub user is allowed to access the server."""
+    if not auth_provider:
+        # No auth configured - allow access (for local development)
+        return None
+    
+    try:
+        from fastmcp.server.dependencies import get_access_token
+        token = get_access_token()
+        github_username = token.claims.get("login", "")
+        
+        if github_username != allowed_github_username:
+            return f"❌ Access denied: GitHub user '{github_username}' is not authorized. Only '{allowed_github_username}' can access this server."
+        
+        return None  # Authorized
+    except Exception as e:
+        return f"❌ Authentication error: {str(e)}"
 
 # Register tools from all modules
 mcp = activity_management.register_tools(mcp)
@@ -196,6 +222,11 @@ mcp = womens_health.register_tools(mcp)
 @mcp.tool()
 async def list_activities(limit: int = 5) -> str:
     """List recent Garmin activities"""
+    # Check GitHub authorization
+    auth_error = check_github_auth()
+    if auth_error:
+        return auth_error
+    
     if not garmin_client:
         return "❌ Garmin API not available: Missing GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables"
     
