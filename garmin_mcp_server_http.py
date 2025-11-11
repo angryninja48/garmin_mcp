@@ -41,9 +41,6 @@ password = os.environ.get("GARMIN_PASSWORD", "")
 tokenstore = os.getenv("GARMINTOKENS") or "~/.garminconnect"
 tokenstore_base64 = os.getenv("GARMINTOKENS_BASE64") or "~/.garminconnect_base64"
 
-# Get MCP authentication token
-bearer_token = os.environ.get("MCP_BEARER_TOKEN", "")
-
 # Warn if credentials are not set
 if not email or not password:
     print("⚠️  WARNING: GARMIN_EMAIL and/or GARMIN_PASSWORD environment variables are not set!")
@@ -51,14 +48,6 @@ if not email or not password:
     print("⚠️  Please set these environment variables in your Kubernetes deployment.")
 else:
     print(f"✓ Using Garmin credentials for: {email}")
-
-# Warn if authentication is not set
-if not bearer_token:
-    print("⚠️  WARNING: MCP_BEARER_TOKEN environment variable is not set!")
-    print("⚠️  Server will be accessible without authentication - NOT RECOMMENDED for production!")
-    print("⚠️  Generate a token: python3 -c \"import secrets; print(secrets.token_urlsafe(32))\"")
-else:
-    print(f"✓ MCP authentication enabled (token: {bearer_token[:8]}...)")
 
 
 def init_api(email, password):

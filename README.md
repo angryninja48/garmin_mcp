@@ -44,21 +44,19 @@ nano .env
 
 ```bash
 # .env file
+# Garmin Connect credentials
 GARMIN_EMAIL=your-email@example.com
 GARMIN_PASSWORD=your-password
-
-# Generate secure token (still needed for internal use)
-MCP_BEARER_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
 
 # GitHub OAuth Configuration (get from https://github.com/settings/developers)
 GITHUB_CLIENT_ID=Ov23liYourClientId
 GITHUB_CLIENT_SECRET=your_github_client_secret
 ALLOWED_GITHUB_USERNAME=your-github-username
 
-# For local testing
+# For local testing (without GitHub OAuth)
 MCP_BASE_URL=http://localhost:8000
 
-# For production (Claude requires HTTPS)
+# For production (Claude requires HTTPS with GitHub OAuth)
 # MCP_BASE_URL=https://garmin-mcp.your-domain.com
 ```
 
@@ -89,11 +87,11 @@ Before Claude can connect, you need to create a GitHub OAuth App:
 5. Copy the **Client ID** and generate a **Client Secret**
 6. Update your `.env` file with these values
 
-### 5. Test Connection
+### 5. Test Health Endpoint
 
 ```bash
-# Test with authentication (tests still use bearer tokens internally)
-python3 tests/test_auth.py http://localhost:8000/mcp YOUR_TOKEN_HERE
+# Verify server is running
+curl http://localhost:8000/health
 ```
 
 ## Claude Integration
@@ -195,15 +193,15 @@ cloudflared tunnel --url http://localhost:8000
 
 ### Kubernetes
 
-1. **Create namespace and secrets**:
+1. **Edit deployment manifest**:
    ```bash
-   kubectl create namespace garmin-mcp
-   
-   kubectl create secret generic garmin-creds \
-     --from-literal=email='your-email@example.com' \
-     --from-literal=password='your-password' \
-     --from-literal=bearer_token='your-token' \
-     -n garmin-mcp
+   # Edit k8s/deployment.yaml and update:
+   # - GARMIN_EMAIL and GARMIN_PASSWORD
+   # - GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET
+   # - ALLOWED_GITHUB_USERNAME
+   # - MCP_BASE_URL (your HTTPS domain)
+   # - TLS/Ingress settings (your domain)
+   nano k8s/deployment.yaml
    ```
 
 2. **Deploy**:
@@ -332,12 +330,13 @@ cloudflared tunnel --url http://localhost:8000
 |----------|----------|---------|-------------|
 | `GARMIN_EMAIL` | Yes | - | Your Garmin Connect email |
 | `GARMIN_PASSWORD` | Yes | - | Your Garmin Connect password |
-| `MCP_BEARER_TOKEN` | Yes | - | Internal token (generate with `secrets.token_urlsafe(32)`) |
-| `GITHUB_CLIENT_ID` | Yes | - | GitHub OAuth App Client ID |
-| `GITHUB_CLIENT_SECRET` | Yes | - | GitHub OAuth App Client Secret |
-| `ALLOWED_GITHUB_USERNAME` | Yes | - | GitHub username allowed to access (e.g., "angryninja48") |
+| `GITHUB_CLIENT_ID` | Yes* | - | GitHub OAuth App Client ID |
+| `GITHUB_CLIENT_SECRET` | Yes* | - | GitHub OAuth App Client Secret |
+| `ALLOWED_GITHUB_USERNAME` | Yes* | `angryninja48` | GitHub username allowed to access |
 | `MCP_BASE_URL` | Yes | `http://localhost:8000` | Public HTTPS URL for OAuth callbacks |
 | `GARMINTOKENS` | No | `/data/.garminconnect` | Path to store Garmin auth tokens |
+
+\* Required for production. Without GitHub OAuth configured, server will start without authentication (local dev only).
 
 ### OAuth Scopes
 
@@ -462,9 +461,12 @@ curl http://localhost:8000/health
 
 **For local development** (without GitHub OAuth):
 ```bash
-# Run server without GitHub credentials
-# Tests will work with bearer token authentication
-python3 tests/test_auth.py http://localhost:8000/mcp YOUR_TOKEN
+# Run server without GitHub credentials to test locally
+# Server will start without authentication
+docker-compose up -d
+
+# Test health endpoint
+curl http://localhost:8000/health
 ```
 
 **For production** (with GitHub OAuth):
@@ -480,7 +482,7 @@ Production uses GitHub OAuth for security - automated tests can't replicate the 
 1. Add tool implementation to appropriate module in `modules/`
 2. Register tool in module's `register_tools()` function
 3. Restart server
-4. Test with `test_auth.py`
+4. Test with Claude.ai (production) or health check (local)
 
 ### Building Docker Image
 
